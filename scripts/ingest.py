@@ -2,6 +2,7 @@ import io
 import requests
 import duckdb
 import pandas as pd
+import math as m
 from pathlib import Path
 from hz_calculator import calc_in_habitable_zone
 from validate_db import run_validation
@@ -24,7 +25,9 @@ def query_TAP_planets():
                          "pl_masse",                # planet mass in Earth mass
                          "pl_eqt",                  # equilibrium temperature in K
                          "st_teff",                 # stellar effective temperature in K
+                         "st_lum",                  # stellar luminosity in log(Solar)
                          "st_mass",                 # stellar mass in Sun mass
+                         "st_rad",                  # stellar radius in Sun radius
                          "sy_dist",                 # distance from Earth to the planetary system in parsecs
                          "ra",                      # right ascension in decimal degrees
                          "dec",                     # declination in decimal degrees
@@ -43,12 +46,30 @@ def clean_df(df):
     # removes rows without planet name or host name
     df = df.dropna(subset=["pl_name", "hostname"])
 
+    # removes rows where stellar temperature is below 2100K (coldest red dwarfs)
+    df = df[df["st_teff"].isna() | (df["st_teff"] >= 2100)]
+
+    # removes rows where mass is greater than 13 Jupiter masses/4130 Earth Mass (excludes brown dwarfs)
+    df = df[df["pl_masse"].isna() | (df["pl_masse"] <= 4130)]
+
     # convert K to F
     df["pl_eqt_F"] = round(((df["pl_eqt"] - 273.15) * 1.8) + 32, 2)
     df["st_teff_F"] = round(((df["st_teff"] - 273.15)* 1.8) + 32, 2)
 
-    # add habitable zone flag with [K] temp
-    df["in_hz"] = df["pl_eqt"].apply(lambda t: calc_in_habitable_zone(t) if pd.notna(t) else None)
+    # approximate luminosity if null using Stefan-Boltzmann law
+    df["st_lum"] = df[["st_lum", "st_rad", "st_teff"]].apply(
+        lambda t: m.log10((t["st_rad"] ** 2) * ((t["st_teff"] / 5778) ** 4)) 
+        if pd.isna(t["st_lum"]) and pd.notna(t["st_rad"]) and pd.notna(t["st_teff"])
+        else t["st_lum"],
+        axis=1
+    )
+
+    # add habitable zone flag using Kopparapu model
+    df[["in_hz", "hz_lower", "hz_upper"]] = df[["pl_orbsmax", "st_teff", "st_lum"]].apply(
+        lambda t: calc_in_habitable_zone(t["pl_orbsmax"], t["st_teff"], t["st_lum"]) if t.notna().all() else (None, None, None),
+        axis=1,
+        result_type="expand"
+    )
 
     return df
 
