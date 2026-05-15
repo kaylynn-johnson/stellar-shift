@@ -30,3 +30,15 @@ def run_validation():
         result = con.execute(query).fetchone()[0]
         status = "PASS" if check(result) else "FAIL"
         print(f"[{status}] {title}: {result}")
+
+    # meaningful query for number of HZ planets
+    hz_num_query = "SELECT COUNT(*) FROM planets WHERE in_hz == 1"
+    hz_names_query = "SELECT pl_name, disc_year, sy_snum, sy_pnum FROM planets WHERE in_hz == 1 LIMIT 20"
+    hz_num = con.execute(hz_num_query).fetchone()[0]
+    hz_names = con.execute(hz_names_query).fetchall()
+
+    print(f"There are {hz_num} planets in the habitable zone.")
+    print(f"Those planet's characteristics for the first 20 are:")
+    print(f"Name, Disc Year, Num stars, Num planets")
+    for planet in hz_names:
+        print(f"{planet[0]}, {planet[1]}, {planet[2]}, {planet[3]}")
