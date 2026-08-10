@@ -17,6 +17,8 @@ def run_validation():
         ("Reasonable orbital period", "SELECT MIN(pl_orbper) FROM planets WHERE pl_orbper IS NOT NULL", lambda n: n > 0),
         ("Reasonable equilibrium temperature", "SELECT MAX(pl_eqt) FROM planets", lambda n: n < 5000),
         ("Reasonable stellar temperature", "SELECT MIN(st_teff) FROM planets WHERE st_teff IS NOT NULL", lambda n: n > 1000),
+        ("Stellar classification uses valid categories", "SELECT COUNT(*) FROM planets WHERE stellar_category NOT IN ('O','B','A','F','G','K','M') AND stellar_category IS NOT NULL", lambda n: n == 0),
+        ("Stellar category null count matches st_teff null count", "SELECT COUNT(*) FROM planets WHERE (stellar_category IS NULL) != (st_teff IS NULL)", lambda n: n == 0),
         ("Reasonable discovery year - early", "SELECT MIN(disc_year) FROM planets", lambda n: n >= 1992),
         ("Reasonable discover year - high", "SELECT MAX(disc_year) FROM planets", lambda n: n <= datetime.now().year),
         ("Recent discoveries present", "SELECT COUNT(*) FROM planets WHERE disc_year >= 2020", lambda n: n > 500),
