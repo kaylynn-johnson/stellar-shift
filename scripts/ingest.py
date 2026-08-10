@@ -9,6 +9,29 @@ from validate_db import run_validation
 
 DB_FILE = Path(__file__).parent.parent / "data" / "planets.duckdb"
 
+def determine_stellar_classification(st_teff):
+    """converts stellar effective temperature to stellar classification (O,B,A,F,G,K,M)
+        data taken from: https://www.astro.princeton.edu/~burrows/classes/204/stellar.atmospheres.HR.pdf"""
+    if pd.isna(st_teff):
+        return None
+    elif st_teff >= 20000:
+        return "O"
+    elif st_teff >= 10000:
+        return "B"
+    elif st_teff >= 7500:
+        return "A"
+    elif st_teff >= 6000:
+        return "F"
+    elif st_teff >= 4000:
+        return "G"
+    elif st_teff >= 3500:
+        return "K"
+    elif st_teff >= 0:
+        return "M"
+    else:
+        return None
+
+
 def query_TAP_planets():
     """queries all the lines from planetary systems table of the NASA Exoplanet Archive
         columns are determined based on default columns that are easily understandable of the planetary systems table"""
@@ -70,6 +93,9 @@ def clean_df(df):
         axis=1,
         result_type="expand"
     )
+
+    # add stellar category column using helper function
+    df["stellar_category"] = df["st_teff"].apply(determine_stellar_classification)
 
     return df
 
