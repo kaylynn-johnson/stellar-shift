@@ -27,6 +27,32 @@ async def get_planets():
         raise HTTPException(status_code=404, detail="No planets found")
     return planets
 
+@app.get("/api/planets/search")
+async def search_planets(
+    radius_min: int | None = None, 
+    radius_max: int | None = None, 
+    orbit_period_min: int | None = None, 
+    orbit_period_max: int | None = None,
+    discovery_method: str | None = None,
+    spectral_type: str | None = None,
+    limit: int = 25,
+    offset: int = 0
+):
+    filters = {
+        "radius_min": radius_min,
+        "radius_max": radius_max,
+        "orbit_period_min": orbit_period_min,
+        "orbit_period_max": orbit_period_max,
+        "discovery_method": discovery_method,
+        "spectral_type": spectral_type
+    }
+
+    planets = queries.search_planets(filters=filters, limit=limit, offset=offset)
+    if not planets:
+        raise HTTPException(status_code=404, detail="No planets matching that query")
+
+    return planets
+
 
 @app.get("/api/planets/{id}")
 async def get_planet(id: int):
