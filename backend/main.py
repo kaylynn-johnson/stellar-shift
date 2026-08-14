@@ -1,21 +1,80 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import logging
 from contextlib import asynccontextmanager
-import queries
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
+from . import config, ingest, queries
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("stellar-shift")
+
+scheduler = BackgroundScheduler()
+
+
+def scheduled_refresh():
+    if ingest.refresh_database():
+        queries.refresh_connection()
+        app.state.last_refreshed = queries.get_last_refreshed()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
-    queries.con.close()
+    if not config.DB_PATH.exists():
+        logger.info("no database found at %s, running initial ingest", config.DB_PATH)
+        ingest.refresh_database()
 
-app = FastAPI(lifespan=lifespan)
+    queries.init_connection()
+    app.state.last_refreshed = queries.get_last_refreshed()
+
+    scheduler.add_job(scheduled_refresh, CronTrigger.from_crontab(config.REFRESH_CRON))
+    scheduler.start()
+
+    yield
+
+    scheduler.shutdown()
+    queries.close_connection()
+
+
+app = FastAPI(
+    title="StellarShift API",
+    description="Search thousands of confirmed exoplanets by size, orbit, and host star, "
+    "sourced from the NASA Exoplanet Archive and refreshed weekly.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_data_freshness_header(request: Request, call_next):
+    response = await call_next(request)
+    last_refreshed = getattr(app.state, "last_refreshed", None)
+    if last_refreshed is not None:
+        response.headers["X-Data-Last-Modified"] = last_refreshed
+    return response
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "last_refreshed": getattr(app.state, "last_refreshed", None),
+    }
 
 
 @app.get("/api/planets")
@@ -29,9 +88,9 @@ async def get_planets():
 
 @app.get("/api/planets/search")
 async def search_planets(
-    radius_min: int | None = None, 
-    radius_max: int | None = None, 
-    orbit_period_min: int | None = None, 
+    radius_min: int | None = None,
+    radius_max: int | None = None,
+    orbit_period_min: int | None = None,
     orbit_period_max: int | None = None,
     discovery_method: str | None = None,
     spectral_type: str | None = None,

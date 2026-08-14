@@ -1,16 +1,55 @@
+import threading
+
 import duckdb
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
-DB_FILE = Path(__file__).parent.parent / "data" / "planets.duckdb"
-con = duckdb.connect(str(DB_FILE), read_only=True)
+from . import config
+
+_lock = threading.Lock()
+_con = None
+
+
+def init_connection():
+    """opens the read-only connection; must be called once the database file is
+        known to exist (see main.py's startup bootstrap)"""
+    global _con
+    new_con = duckdb.connect(str(config.DB_PATH), read_only=True)
+    with _lock:
+        _con = new_con
+
+
+def refresh_connection():
+    """reopens the read-only connection against the (just-swapped) database file.
+        DuckDB shares one in-memory instance per file path per process, so the old
+        connection must be closed *before* reopening -- otherwise the "new" connection
+        just reattaches to the stale instance instead of reading the replaced file."""
+    global _con
+    with _lock:
+        _con.close()
+        _con = duckdb.connect(str(config.DB_PATH), read_only=True)
+
+
+def close_connection():
+    global _con
+    with _lock:
+        if _con is not None:
+            _con.close()
+            _con = None
+
+
+def get_last_refreshed():
+    with _lock:
+        result = _con.execute("SELECT refreshed_at FROM meta").fetchone()
+    return result[0] if result else None
+
 
 def all_planets():
 
     all_planets_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets"
 
-    result = con.execute(all_planets_query).fetchdf()
+    with _lock:
+        result = _con.execute(all_planets_query).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
     return result
@@ -20,7 +59,8 @@ def planet_id(id):
 
     planet_id_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets where rowid = ?"
 
-    result = con.execute(planet_id_query, [id]).fetchdf()
+    with _lock:
+        result = _con.execute(planet_id_query, [id]).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
     return result
@@ -30,7 +70,8 @@ def habitable_planets():
 
     habitable_planets_query = "SELECT pl_name, in_hz, hz_lower, hz_upper FROM planets"
 
-    result = con.execute(habitable_planets_query).fetchdf()
+    with _lock:
+        result = _con.execute(habitable_planets_query).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
     return result
@@ -70,7 +111,8 @@ def search_planets(filters: dict, limit: int, offset: int):
     search_query = f"SELECT * FROM planets WHERE {where_clause} LIMIT $limit OFFSET $offset"
     parameters["limit"] = limit
     parameters["offset"] = offset
-    result = con.execute(search_query, parameters).fetchdf()
+    with _lock:
+        result = _con.execute(search_query, parameters).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
     return result
