@@ -3,21 +3,7 @@ name: Tests
 on:
   push:
     branches: [main]
-    paths:
-      - "backend/**"
-      - "tests/**"
-      - "requirements.txt"
-      - "requirements-dev.txt"
-      - "pytest.ini"
-      - ".github/workflows/tests.yml"
   pull_request:
-    paths:
-      - "backend/**"
-      - "tests/**"
-      - "requirements.txt"
-      - "requirements-dev.txt"
-      - "pytest.ini"
-      - ".github/workflows/tests.yml"
 
 jobs:
   test:
