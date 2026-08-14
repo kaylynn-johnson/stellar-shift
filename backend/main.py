@@ -12,8 +12,6 @@ from . import config, ingest, queries
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stellar-shift")
 
-scheduler = BackgroundScheduler()
-
 
 def scheduled_refresh():
     if ingest.refresh_database():
@@ -30,6 +28,7 @@ async def lifespan(app: FastAPI):
     queries.init_connection()
     app.state.last_refreshed = queries.get_last_refreshed()
 
+    scheduler = BackgroundScheduler()
     scheduler.add_job(scheduled_refresh, CronTrigger.from_crontab(config.REFRESH_CRON))
     scheduler.start()
 

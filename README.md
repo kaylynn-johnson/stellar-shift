@@ -1,5 +1,7 @@
 # stellar-shift
 
+[![Tests](https://github.com/kaylynn-johnson/stellar-shift/actions/workflows/tests.yml/badge.svg)](https://github.com/kaylynn-johnson/stellar-shift/actions/workflows/tests.yml)
+
 A FastAPI backend that searches ~6,000 confirmed exoplanets by size, orbit, and host star, sourced from the [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/) and computed against the [Kopparapu et al. 2013](https://complexityexplorer.s3.amazonaws.com/supplemental_materials/6.3+Exoplanets/Kopparapu_2013_ApJ_765_131.pdf) habitable-zone model. Deployed on [Railway](https://railway.com/) as a single Docker container.
 
 **Live API:** [stellar-shift-api.up.railway.app](https://stellar-shift-api.up.railway.app/) · **Interactive docs:** [stellar-shift-api.up.railway.app/docs](https://stellar-shift-api.up.railway.app/docs#/)
@@ -63,6 +65,17 @@ uvicorn backend.main:app --reload
 On first run with no `data/planets.duckdb` present, the app pulls fresh data from the NASA TAP API before it starts serving — this can take ~20-30 seconds.
 
 To force a manual refresh: `python -m backend.ingest`
+
+## Testing
+
+```
+pip install -r requirements-dev.txt
+pytest
+```
+
+26 tests covering the API routes, the query layer, and the ingest/validation pipeline — all offline, no network calls or real database required. Tests build a small synthetic dataset through the real `clean_df`/`write_duckdb` code paths rather than hand-rolled fixtures, and only mock the true external dependency (the NASA TAP HTTP call). Notably includes a regression test (`test_refresh_connection_reads_replaced_file_not_stale_cache`) for a real bug caught during manual deployment testing: DuckDB shares one in-memory database instance per file path per process, so reopening a connection *before* closing the old one silently served stale data after a refresh instead of the newly-swapped file.
+
+Runs on every push/PR that touches the backend (`.github/workflows/tests.yml`) — same `pip install` + `pytest` as above, on Python 3.12 to match the Dockerfile.
 
 ## Deployment (Railway)
 

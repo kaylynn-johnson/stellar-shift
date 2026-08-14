@@ -10,16 +10,16 @@ _lock = threading.Lock()
 _con = None
 
 
-def init_connection():
+def init_connection(db_path=None):
     """opens the read-only connection; must be called once the database file is
         known to exist (see main.py's startup bootstrap)"""
     global _con
-    new_con = duckdb.connect(str(config.DB_PATH), read_only=True)
+    new_con = duckdb.connect(str(db_path or config.DB_PATH), read_only=True)
     with _lock:
         _con = new_con
 
 
-def refresh_connection():
+def refresh_connection(db_path=None):
     """reopens the read-only connection against the (just-swapped) database file.
         DuckDB shares one in-memory instance per file path per process, so the old
         connection must be closed *before* reopening -- otherwise the "new" connection
@@ -27,7 +27,7 @@ def refresh_connection():
     global _con
     with _lock:
         _con.close()
-        _con = duckdb.connect(str(config.DB_PATH), read_only=True)
+        _con = duckdb.connect(str(db_path or config.DB_PATH), read_only=True)
 
 
 def close_connection():
