@@ -1,10 +1,13 @@
 import duckdb
 from datetime import datetime
-from pathlib import Path
 
-DB_FILE = Path(__file__).parent.parent / "data" / "planets.duckdb"
+from . import config
 
-def run_validation():
+
+def run_validation(db_path=None) -> bool:
+    """runs data QA checks against the given duckdb file, printing PASS/FAIL per check.
+        returns True only if every check passed."""
+    db_path = db_path or config.DB_PATH
     CHECKS = [
         ("Total row count", "SELECT COUNT(*) FROM planets", lambda n: n > 5000),
         ("No null planet names", "SELECT COUNT(*) FROM planets WHERE pl_name IS NULL", lambda n: n == 0),
@@ -27,10 +30,13 @@ def run_validation():
         ("No duplicate planet names", "SELECT COUNT(*) - COUNT(DISTINCT pl_name) FROM planets", lambda n: n == 0),
     ]
 
-    con = duckdb.connect(str(DB_FILE))
+    con = duckdb.connect(str(db_path))
+    all_passed = True
     for title, query, check in CHECKS:
         result = con.execute(query).fetchone()[0]
-        status = "PASS" if check(result) else "FAIL"
+        passed = check(result)
+        all_passed = all_passed and passed
+        status = "PASS" if passed else "FAIL"
         print(f"[{status}] {title}: {result}")
 
     # meaningful query for number of HZ planets
@@ -44,3 +50,6 @@ def run_validation():
     print(f"Name, Disc Year, Num stars, Num planets")
     for planet in hz_names:
         print(f"{planet[0]}, {planet[1]}, {planet[2]}, {planet[3]}")
+
+    con.close()
+    return all_passed

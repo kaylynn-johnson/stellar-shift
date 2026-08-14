@@ -1,13 +1,14 @@
 import io
+import os
 import requests
 import duckdb
 import pandas as pd
 import math as m
-from pathlib import Path
-from hz_calculator import calc_in_habitable_zone
-from validate_db import run_validation
+from datetime import datetime, timezone
 
-DB_FILE = Path(__file__).parent.parent / "data" / "planets.duckdb"
+from . import config
+from .hz_calculator import calc_in_habitable_zone
+from .validate_db import run_validation
 
 def determine_stellar_classification(st_teff):
     """converts stellar effective temperature to stellar classification (O,B,A,F,G,K,M)
@@ -100,28 +101,52 @@ def clean_df(df):
     return df
 
 
-def write_duckdb(df):
-    """write dataframe to a duckdb database in the data folder with name planets.duckdb"""
-    con = duckdb.connect(str(DB_FILE))
-    
-    # plan to rewrite every time this is run so remove existing table
+def write_duckdb(df, db_path, refreshed_at):
+    """write dataframe and a refresh timestamp to a duckdb file at db_path"""
+    con = duckdb.connect(str(db_path))
+
+    # plan to rewrite every time this is run so remove existing tables
     con.execute("DROP TABLE IF EXISTS planets")
+    con.execute("DROP TABLE IF EXISTS meta")
 
     # create a fresh planets table
     con.execute("""
                     CREATE TABLE planets AS SELECT * FROM df
                 """)
-    
+
     # create indexes on planet's name and habitability to query faster
     con.execute("CREATE INDEX idx_name ON planets(pl_name)")
     con.execute("CREATE INDEX idx_hz ON planets(in_hz)")
-    
+
+    # record when this data was refreshed (as an ISO 8601 string, so reading it
+    # back needs no timezone-aware timestamp conversion), for the API's freshness header
+    con.execute("CREATE TABLE meta AS SELECT ? AS refreshed_at", [refreshed_at.isoformat()])
+
     # close connection
     con.close()
 
 
-if __name__ == "__main__":
+def refresh_database(db_path=None) -> bool:
+    """pulls fresh data, writes it to a temp duckdb file, validates it, and only
+        then atomically swaps it in for the live database. Returns whether the
+        refresh succeeded; on failure the previously live database is left untouched."""
+    db_path = db_path or config.DB_PATH
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = db_path.with_suffix(db_path.suffix + ".tmp")
+
     df = query_TAP_planets()
     df = clean_df(df)
-    write_duckdb(df)
-    run_validation()
+    write_duckdb(df, tmp_path, datetime.now(timezone.utc))
+
+    if not run_validation(tmp_path):
+        print(f"[refresh] validation failed, keeping existing database at {db_path}")
+        os.remove(tmp_path)
+        return False
+
+    os.replace(tmp_path, db_path)
+    print(f"[refresh] database refreshed at {db_path}")
+    return True
+
+
+if __name__ == "__main__":
+    refresh_database()
