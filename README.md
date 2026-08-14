@@ -2,7 +2,7 @@
 
 A FastAPI backend that searches ~6,000 confirmed exoplanets by size, orbit, and host star, sourced from the [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/) and computed against the [Kopparapu et al. 2013](https://complexityexplorer.s3.amazonaws.com/supplemental_materials/6.3+Exoplanets/Kopparapu_2013_ApJ_765_131.pdf) habitable-zone model. Deployed on [Railway](https://railway.com/) as a single Docker container.
 
-**Live API:** `<railway-url>` · **Interactive docs:** `<railway-url>/docs`
+**Live API:** [stellar-shift-api.up.railway.app](https://stellar-shift-api.up.railway.app/) · **Interactive docs:** [stellar-shift-api.up.railway.app/docs](https://stellar-shift-api.up.railway.app/docs#/)
 
 ## Architecture
 
