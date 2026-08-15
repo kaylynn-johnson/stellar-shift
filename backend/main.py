@@ -130,3 +130,11 @@ async def get_habitable_zone():
     if not habitable_planets:
         raise HTTPException(status_code=404, detail="No habitable planets found")
     return habitable_planets
+
+
+@app.get("/api/planets/filter-options")
+async def get_filter_options():
+    # return all options for discoverymethod and spectral_type
+    filters = queries.filter_options()
+    
+    return filters

@@ -77,6 +77,22 @@ def habitable_planets():
     return result
 
 
+def filter_options():
+
+    with _lock:
+        methods = _con.execute(
+            "SELECT DISTINCT discoverymethod FROM planets ORDER BY 1"
+        ).fetchall()
+        types = _con.execute(
+            "SELECT DISTINCT stellar_category FROM planets WHERE stellar_category IS NOT NULL ORDER BY 1"
+        ).fetchall()
+
+    return {
+        "discovery_methods": [m[0] for m in methods],
+        "spectral_types": [t[0] for t in types]
+    }
+
+
 def search_planets(filters: dict, limit: int, offset: int):
 
     clauses = []
