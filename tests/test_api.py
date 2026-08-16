@@ -25,7 +25,7 @@ def test_get_planets(client):
 
 
 def test_get_planet_by_id(client):
-    resp = client.get("/api/planets/0")
+    resp = client.get("/api/planets/Test-1%20b")
     assert resp.status_code == 200
     assert resp.json()[0]["pl_name"] == "Test-1 b"
 
@@ -38,7 +38,9 @@ def test_get_planet_by_id_not_found(client):
 def test_search_by_spectral_type(client):
     resp = client.get("/api/planets/search", params={"spectral_type": "F"})
     assert resp.status_code == 200
-    assert {p["pl_name"] for p in resp.json()} == {"Test-3 b"}
+    body = resp.json()
+    assert body["total"] == 1
+    assert {p["pl_name"] for p in body["results"]} == {"Test-3 b"}
 
 
 def test_search_no_matches_is_404(client):

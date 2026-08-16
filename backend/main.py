@@ -87,10 +87,10 @@ async def get_planets():
 
 @app.get("/api/planets/search")
 async def search_planets(
-    radius_min: int | None = None,
-    radius_max: int | None = None,
-    orbit_period_min: int | None = None,
-    orbit_period_max: int | None = None,
+    radius_min: float | None = None,
+    radius_max: float | None = None,
+    orbit_period_min: float | None = None,
+    orbit_period_max: float | None = None,
     discovery_method: str | None = None,
     spectral_type: str | None = None,
     limit: int = 25,
@@ -105,11 +105,11 @@ async def search_planets(
         "spectral_type": spectral_type
     }
 
-    planets = queries.search_planets(filters=filters, limit=limit, offset=offset)
-    if not planets:
+    result = queries.search_planets(filters=filters, limit=limit, offset=offset)
+    if not result["results"]:
         raise HTTPException(status_code=404, detail="No planets matching that query")
 
-    return planets
+    return result
 
 
 @app.get("/api/planets/filter-options")
@@ -121,7 +121,7 @@ async def get_filter_options():
 
 
 @app.get("/api/planets/{id}")
-async def get_planet(id: int):
+async def get_planet(id: str):
     # return all information on planet ID from planets.duckdb
     planet = queries.planet_id(id)
     # check result

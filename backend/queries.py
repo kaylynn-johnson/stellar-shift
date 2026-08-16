@@ -57,7 +57,7 @@ def all_planets():
 
 def planet_id(id):
 
-    planet_id_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets where rowid = ?"
+    planet_id_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets WHERE pl_name = ?"
 
     with _lock:
         result = _con.execute(planet_id_query, [id]).fetchdf()
@@ -124,11 +124,16 @@ def search_planets(filters: dict, limit: int, offset: int):
 
     # last bit is if there are no parameters passed
     where_clause = " AND ".join(clauses) if clauses else "1=1"
-    search_query = f"SELECT * FROM planets WHERE {where_clause} LIMIT $limit OFFSET $offset"
-    parameters["limit"] = limit
-    parameters["offset"] = offset
+   
     with _lock:
+        total = _con.execute(
+            f"SELECT COUNT(*) FROM planets WHERE {where_clause}", parameters
+        ).fetchone()[0]
+
+        search_query = f"SELECT * FROM planets WHERE {where_clause} LIMIT $limit OFFSET $offset"
+        parameters["limit"] = limit
+        parameters["offset"] = offset
         result = _con.execute(search_query, parameters).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
-    return result
+    return {"results": result, "total": total}
