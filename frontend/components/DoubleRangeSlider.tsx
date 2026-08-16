@@ -1,5 +1,7 @@
 'use client';
 
+// Adapted from https://jsdev.space/react-double-range-slider/
+
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
@@ -98,10 +100,10 @@ export const DoubleRangeSlider = forwardRef<HTMLSpanElement, DoubleRangeSliderPr
         value={local}
         onValueChange={handleChange}
         onValueCommit={handleCommit}
-        className={cn('relative mb-6 flex w-full select-none touch-none items-center', className)}
+        className={cn('relative mb-20 mt-10 flex w-5/6 left-10 select-none touch-none items-center', className)}
         {...props}
       >
-        <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-primary/20">
+        <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-primary/20 border">
           <SliderPrimitive.Range className="absolute h-full bg-main" />
         </SliderPrimitive.Track>
 
