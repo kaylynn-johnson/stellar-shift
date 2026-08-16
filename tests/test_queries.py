@@ -30,8 +30,8 @@ def test_planet_id_lookup(tmp_path):
     path = build_fixture_db(tmp_path / "c.duckdb")
     queries.init_connection(db_path=path)
     try:
-        assert queries.planet_id(0)[0]["pl_name"] == "Test-1 b"
-        assert queries.planet_id(999) == []
+        assert queries.planet_id("Test-1 b")[0]["pl_name"] == "Test-1 b"
+        assert queries.planet_id("nonexistent planet") == []
     finally:
         queries.close_connection()
 
@@ -49,7 +49,8 @@ def test_search_filters_by_spectral_type(tmp_path):
             limit=25, offset=0,
         )
         # only Test-3 b has st_teff=6000, which classifies as spectral type F
-        assert {r["pl_name"] for r in results} == {"Test-3 b"}
+        assert results["total"] == 1
+        assert {r["pl_name"] for r in results["results"]} == {"Test-3 b"}
     finally:
         queries.close_connection()
 
