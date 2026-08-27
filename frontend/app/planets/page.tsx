@@ -156,11 +156,11 @@ export default function Planets() {
                 </tr>
             </thead>
             <tbody>
-                {planets.map((planet) => (
-                    <tr className='border-b'>
+                {planets.map((planet, index) => (
+                    <tr className='border-b' key={index}>
                         <td key={planet.pl_name} className='p-3'><Link href={`/planets/${encodeURIComponent(planet.pl_name)}`}>{planet.pl_name}</Link> </td>
-                        <td className='p-3'>{planet.pl_rade ?? '?'} </td>
-                        <td className='p-3'>{planet.pl_orbper ?? '?'}</td>
+                        <td className='p-3'>{planet.pl_rade ?? 'Unknown'} </td>
+                        <td className='p-3'>{planet.pl_orbper ?? 'Unknown'}</td>
                         <td className='p-3'>{planet.in_hz ? 'Yes': 'No'}</td>
                     </tr>
                 ))}
