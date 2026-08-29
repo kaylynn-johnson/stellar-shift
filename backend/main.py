@@ -77,15 +77,6 @@ async def health():
 
 
 @app.get("/api/planets")
-async def get_planets():
-    # return all information from planets.duckdb
-    planets = queries.all_planets()
-    # check result
-    if not planets:
-        raise HTTPException(status_code=404, detail="No planets found")
-    return planets
-
-@app.get("/api/planets/search")
 async def search_planets(
     radius_min: float | None = None,
     radius_max: float | None = None,
@@ -94,7 +85,7 @@ async def search_planets(
     discovery_method: str | None = None,
     spectral_type: str | None = None,
     limit: int = 25,
-    offset: int = 0
+    page: int = 0
 ):
     filters = {
         "radius_min": radius_min,
@@ -105,7 +96,7 @@ async def search_planets(
         "spectral_type": spectral_type
     }
 
-    result = queries.search_planets(filters=filters, limit=limit, offset=offset)
+    result = queries.search_planets(filters=filters, limit=limit, page=page)
     if not result["results"]:
         raise HTTPException(status_code=404, detail="No planets matching that query")
 

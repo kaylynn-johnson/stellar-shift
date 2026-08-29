@@ -42,8 +42,7 @@ One Railway service runs the whole thing: the FastAPI app and its weekly refresh
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/planets` | All planets (name, host, orbit, radius, mass, habitable-zone flag) |
-| GET | `/api/planets/search` | Filter by radius, orbital period, discovery method, spectral type; paginated |
+| GET | `/api/planets` | Filterable planes (radius, orbital period, discovery method, spectral type); paginated |
 | GET | `/api/planets/{id}` | Single planet by row id |
 | GET | `/api/habitable-zone` | Habitable-zone flag and bounds for every planet |
 | GET | `/health` | Liveness + last data refresh timestamp (used by Railway's health check) |
@@ -51,7 +50,7 @@ One Railway service runs the whole thing: the FastAPI app and its weekly refresh
 Every response includes an `X-Data-Last-Modified` header — the UTC timestamp of the last successful weekly refresh, independent of when the request was made.
 
 ```
-curl -i https://<railway-url>/api/planets/search?radius_max=2&spectral_type=G
+curl -i https://<railway-url>/api/planets?radius_max=2&spectral_type=G
 ```
 
 ## Local development
@@ -73,7 +72,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-26 tests covering the API routes, the query layer, and the ingest/validation pipeline — all offline, no network calls or real database required. Tests build a small synthetic dataset through the real `clean_df`/`write_duckdb` code paths rather than hand-rolled fixtures, and only mock the true external dependency (the NASA TAP HTTP call). Notably includes a regression test (`test_refresh_connection_reads_replaced_file_not_stale_cache`) for a real bug caught during manual deployment testing: DuckDB shares one in-memory database instance per file path per process, so reopening a connection *before* closing the old one silently served stale data after a refresh instead of the newly-swapped file.
+26 tests covering the API routes, the query layer, and the ingest/validation pipeline — all offline, no network calls or real database required. Tests build a small synthetic dataset through the real `clean_df`/`write_duckdb` code paths rather than hand-rolled fixtures, and only mock the true external dependency (the NASA TAP HTTP call). Notably includes a regression test (`test_refresh_connection_reads_replaced_file_not_stale_cache`) for a bug caught during manual deployment testing: DuckDB shares one in-memory database instance per file path per process, so reopening a connection *before* closing the old one silently served stale data after a refresh instead of the newly-swapped file.
 
 Runs on every push/PR that touches the backend (`.github/workflows/tests.yml`) — same `pip install` + `pytest` as above, on Python 3.12 to match the Dockerfile.
 

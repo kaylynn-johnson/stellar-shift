@@ -8,8 +8,14 @@ def test_all_planets_excludes_row_dropped_by_clean_df(tmp_path):
     path = build_fixture_db(tmp_path / "a.duckdb")
     queries.init_connection(db_path=path)
     try:
-        planets = queries.all_planets()
-        names = {p["pl_name"] for p in planets}
+        planets = queries.search_planets(
+            filters={
+                "radius_min": None, "radius_max": None,
+                "orbit_period_min": None, "orbit_period_max": None,
+                "discovery_method": None, "spectral_type": None,
+            }, limit=1000, page=0,
+        )
+        names = {p["pl_name"] for p in planets["results"]}
         assert names == {"Test-1 b", "Test-2 b", "Test-3 b"}
     finally:
         queries.close_connection()
@@ -46,7 +52,7 @@ def test_search_filters_by_spectral_type(tmp_path):
                 "orbit_period_min": None, "orbit_period_max": None,
                 "discovery_method": None, "spectral_type": "F",
             },
-            limit=25, offset=0,
+            limit=25, page=0,
         )
         # only Test-3 b has st_teff=6000, which classifies as spectral type F
         assert results["total"] == 1

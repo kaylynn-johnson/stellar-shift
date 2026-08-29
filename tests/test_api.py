@@ -20,7 +20,7 @@ def test_data_freshness_header_present_on_every_response(client):
 def test_get_planets(client):
     resp = client.get("/api/planets")
     assert resp.status_code == 200
-    names = {p["pl_name"] for p in resp.json()}
+    names = {p["pl_name"] for p in resp.json()["results"]}
     assert names == {"Test-1 b", "Test-2 b", "Test-3 b"}
 
 
@@ -36,7 +36,7 @@ def test_get_planet_by_id_not_found(client):
 
 
 def test_search_by_spectral_type(client):
-    resp = client.get("/api/planets/search", params={"spectral_type": "F"})
+    resp = client.get("/api/planets", params={"spectral_type": "F"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["total"] == 1
@@ -44,7 +44,7 @@ def test_search_by_spectral_type(client):
 
 
 def test_search_no_matches_is_404(client):
-    resp = client.get("/api/planets/search", params={"spectral_type": "O"})
+    resp = client.get("/api/planets", params={"spectral_type": "O"})
     assert resp.status_code == 404
 
 

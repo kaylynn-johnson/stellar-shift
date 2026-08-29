@@ -44,20 +44,9 @@ def get_last_refreshed():
     return result[0] if result else None
 
 
-def all_planets():
-
-    all_planets_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets"
-
-    with _lock:
-        result = _con.execute(all_planets_query).fetchdf()
-    result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
-
-    return result
-
-
 def planet_id(id):
 
-    planet_id_query = "SELECT pl_name, hostname, sy_snum, sy_pnum, pl_orbper, pl_rade, pl_masse, in_hz FROM planets WHERE pl_name = ?"
+    planet_id_query = "SELECT * FROM planets WHERE pl_name = ?"
 
     with _lock:
         result = _con.execute(planet_id_query, [id]).fetchdf()
@@ -93,7 +82,7 @@ def filter_options():
     }
 
 
-def search_planets(filters: dict, limit: int, offset: int):
+def search_planets(filters: dict, limit: int, page: int):
 
     clauses = []
     parameters = {}
@@ -123,16 +112,21 @@ def search_planets(filters: dict, limit: int, offset: int):
         parameters["spectral_type"] = filters["spectral_type"]
 
     # last bit is if there are no parameters passed
-    where_clause = " AND ".join(clauses) if clauses else "1=1"
+    if clauses:
+        where_clause = f"WHERE {" AND ".join(clauses)}"
+    else:
+        # no where clause if every filter is none
+        where_clause = ""
    
     with _lock:
         total = _con.execute(
-            f"SELECT COUNT(*) FROM planets WHERE {where_clause}", parameters
+            f"SELECT COUNT(*) FROM planets {where_clause}", parameters
         ).fetchone()[0]
 
-        search_query = f"SELECT * FROM planets WHERE {where_clause} LIMIT $limit OFFSET $offset"
+        search_query = f"SELECT * FROM planets {where_clause} LIMIT $limit OFFSET $offset"
         parameters["limit"] = limit
-        parameters["offset"] = offset
+        parameters["offset"] = page * limit
+        print(search_query, parameters)
         result = _con.execute(search_query, parameters).fetchdf()
     result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
 
