@@ -50,7 +50,7 @@ One Railway service runs the whole thing: the FastAPI app and its weekly refresh
 Every response includes an `X-Data-Last-Modified` header — the UTC timestamp of the last successful weekly refresh, independent of when the request was made.
 
 ```
-curl -i https://<railway-url>/api/planets?radius_max=2&spectral_type=G
+curl -i https://stellar-shift-api.up.railway.app/api/planets?radius_max=2&spectral_type=G
 ```
 
 ## Local development

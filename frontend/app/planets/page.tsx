@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { DoubleRangeSlider } from '@/components/DoubleRangeSlider';
 import { roundDecimals } from '@/components/format';
+import { Pagination } from '@/components/Pagination';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 
 type Planet = {
@@ -24,7 +26,24 @@ const ORBIT_MAX_DAYS = 2000;
 const ORBIT_MIN_LOG = Math.log10(ORBIT_MIN_DAYS);
 const ORBIT_MAX_LOG = Math.log10(ORBIT_MAX_DAYS);
 
+const PAGE_SIZE = 25; // From backend default limit
+
+
 export default function Planets() {
+    return (
+        <Suspense fallback={<div className='ml-2 text-xl'>Loading...</div>}>
+            <PlanetsContent />
+        </Suspense>
+    );
+}
+
+
+function PlanetsContent() {
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [radiusRange, setRadiusRange] = useState<[number, number]>([RADIUS_MIN, RADIUS_MAX]);
   const [orbitRange, setOrbitRange] = useState<[number, number]>([ORBIT_MIN_DAYS, ORBIT_MAX_DAYS]);
   const [discoveryMethod, setDiscoverMethod] = useState("");
@@ -33,8 +52,14 @@ export default function Planets() {
   const [spectralTypes, setSpectralTypes] = useState<string[]>([]);
   const [planets, setPlanets] = useState<Planet[]>([]);
   const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = Number(searchParams.get('page'));
+    return Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 0;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const fetchPlanets = useCallback(async () => {
     setLoading(true);
@@ -48,7 +73,8 @@ export default function Planets() {
       if (orbitRange[1] < (ORBIT_MAX_DAYS-10)) params.set('orbit_period_max', String(roundDecimals(orbitRange[1],4)));
       if (discoveryMethod) params.set('discovery_method', discoveryMethod);
       if (spectralType) params.set('spectral_type', spectralType);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/api/planets/search?${params}`);
+      params.set('page', String(currentPage));
+      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/api/planets?${params}`);
       if (!res.ok) {
         setPlanets([]);
         setTotal(0);
@@ -65,12 +91,16 @@ export default function Planets() {
     } finally {
       setLoading(false);
     }
-  }, [radiusRange, orbitRange, discoveryMethod, spectralType]);
+  }, [radiusRange, orbitRange, discoveryMethod, spectralType, currentPage]);
+
+  function newPage(pageNumber: number) {
+    setCurrentPage(pageNumber);
+  }
 
   useEffect(() => {
     // initial fetching of planets
     fetchPlanets();
-  }, []);
+  }, [fetchPlanets]);
 
   useEffect(() => {
     // one time fetching of discovery method and spectral type options
@@ -82,6 +112,13 @@ export default function Planets() {
     })
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (currentPage > 0) params.set('page', String(currentPage));
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {scroll: false});
+  }, [currentPage, pathname, router]);
+
   return (
     <div>
         <h1 className='ml-2 text-3xl font-bold'>Search planets by parameters</h1>
@@ -91,7 +128,7 @@ export default function Planets() {
                 min={RADIUS_MIN}
                 max={RADIUS_MAX}
                 value={radiusRange}
-                onValueChange={setRadiusRange}
+                onValueChange={(v) => { setRadiusRange(v); setCurrentPage(0); }}
                 formatLabel={(v) => `${v} R⊕`}
             />
         </div>
@@ -102,7 +139,7 @@ export default function Planets() {
                 max={ORBIT_MAX_LOG}
                 value={[Math.log10(orbitRange[0]), Math.log10(orbitRange[1])]}
                 step={0.01}
-                onValueChange={([lo, hi]) => setOrbitRange([Math.pow(10, lo), Math.pow(10, hi)])}
+                onValueChange={([lo, hi]) => { setOrbitRange([Math.pow(10, lo), Math.pow(10, hi)]); setCurrentPage(0); }}
                 formatLabel={(logValue) => {
                     const days = Math.pow(10, logValue);
                     return days >= (ORBIT_MAX_DAYS-10)
@@ -119,7 +156,7 @@ export default function Planets() {
         <div>
             <select 
                 value={discoveryMethod} 
-                onChange={(e) => setDiscoverMethod(e.target.value)}
+                onChange={(e) => {setDiscoverMethod(e.target.value); setCurrentPage(0); }}
                 className='rounded-md border border-main bg-white px-3 py-1.5 text-sm ml-2 mb-2'
             >
                 <option value="">Any discovery method</option>
@@ -130,7 +167,7 @@ export default function Planets() {
 
             <select 
                 value={spectralType} 
-                onChange={(e) => setSpectralType(e.target.value)}
+                onChange={(e) => { setSpectralType(e.target.value); setCurrentPage(0); }}
                 className='rounded-md border border-main bg-white px-3 py-1.5 text-sm ml-2 mb-2'
             >
                 <option value="">Any stellar type</option>
@@ -166,6 +203,7 @@ export default function Planets() {
                 ))}
             </tbody>  
         </table>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={newPage} />
     </div>
   );
 }
