@@ -1,7 +1,6 @@
 import threading
 
 import duckdb
-import pandas as pd
 import numpy as np
 
 from . import config
@@ -20,10 +19,11 @@ def init_connection(db_path=None):
 
 
 def refresh_connection(db_path=None):
-    """reopens the read-only connection against the (just-swapped) database file.
-        DuckDB shares one in-memory instance per file path per process, so the old
-        connection must be closed *before* reopening -- otherwise the "new" connection
-        just reattaches to the stale instance instead of reading the replaced file."""
+    """reopens the read-only connection against the (just-swapped)
+    database file. DuckDB shares one in-memory instance per file path
+    per process, so the old connection must be closed before reopening,
+    otherwise the "new" connection just reattaches to the stale instance
+    instead of reading the replaced file."""
     global _con
     with _lock:
         _con.close()
@@ -50,18 +50,20 @@ def planet_id(id):
 
     with _lock:
         result = _con.execute(planet_id_query, [id]).fetchdf()
-    result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
+    result = result.replace([np.inf, -np.inf, np.nan],
+                            None).to_dict(orient="records")
 
     return result
 
 
 def habitable_planets():
 
-    habitable_planets_query = "SELECT pl_name, in_hz, hz_lower, hz_upper FROM planets"
+    habitable_query = "SELECT pl_name, in_hz, hz_lower, hz_upper FROM planets"
 
     with _lock:
-        result = _con.execute(habitable_planets_query).fetchdf()
-    result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
+        result = _con.execute(habitable_query).fetchdf()
+    result = result.replace([np.inf, -np.inf, np.nan],
+                            None).to_dict(orient="records")
 
     return result
 
@@ -73,7 +75,8 @@ def filter_options():
             "SELECT DISTINCT discoverymethod FROM planets ORDER BY 1"
         ).fetchall()
         types = _con.execute(
-            "SELECT DISTINCT stellar_category FROM planets WHERE stellar_category IS NOT NULL ORDER BY 1"
+            "SELECT DISTINCT stellar_category FROM planets WHERE"
+            " stellar_category IS NOT NULL ORDER BY 1"
         ).fetchall()
 
     return {
@@ -117,17 +120,19 @@ def search_planets(filters: dict, limit: int, page: int):
     else:
         # no where clause if every filter is none
         where_clause = ""
-   
+
     with _lock:
         total = _con.execute(
             f"SELECT COUNT(*) FROM planets {where_clause}", parameters
         ).fetchone()[0]
 
-        search_query = f"SELECT * FROM planets {where_clause} LIMIT $limit OFFSET $offset"
+        search_query = f"SELECT * FROM planets {where_clause} " \
+            "LIMIT $limit OFFSET $offset"
         parameters["limit"] = limit
         parameters["offset"] = page * limit
         print(search_query, parameters)
         result = _con.execute(search_query, parameters).fetchdf()
-    result = result.replace([np.inf, -np.inf, np.nan], None).to_dict(orient="records")
+    result = result.replace([np.inf, -np.inf, np.nan],
+                            None).to_dict(orient="records")
 
     return {"results": result, "total": total}

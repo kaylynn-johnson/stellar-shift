@@ -22,14 +22,16 @@ def scheduled_refresh():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if not config.DB_PATH.exists():
-        logger.info("no database found at %s, running initial ingest", config.DB_PATH)
+        logger.info("no database found at %s, running initial ingest",
+                    config.DB_PATH)
         ingest.refresh_database()
 
     queries.init_connection()
     app.state.last_refreshed = queries.get_last_refreshed()
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(scheduled_refresh, CronTrigger.from_crontab(config.REFRESH_CRON))
+    scheduler.add_job(scheduled_refresh,
+                      CronTrigger.from_crontab(config.REFRESH_CRON))
     scheduler.start()
 
     yield
@@ -40,8 +42,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="StellarShift API",
-    description="Search thousands of confirmed exoplanets by size, orbit, and host star, "
-    "sourced from the NASA Exoplanet Archive and refreshed weekly.",
+    description="Search thousands of confirmed exoplanets by size, "
+    "orbit, and host star, sourced from the NASA Exoplanet Archive "
+    "and refreshed weekly.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -98,7 +101,8 @@ async def search_planets(
 
     result = queries.search_planets(filters=filters, limit=limit, page=page)
     if not result["results"]:
-        raise HTTPException(status_code=404, detail="No planets matching that query")
+        raise HTTPException(status_code=404,
+                            detail="No planets matching that query")
 
     return result
 
@@ -107,7 +111,7 @@ async def search_planets(
 async def get_filter_options():
     # return all options for discoverymethod and spectral_type
     filters = queries.filter_options()
-    
+
     return filters
 
 
@@ -127,5 +131,6 @@ async def get_habitable_zone():
     habitable_planets = queries.habitable_planets()
     # check result
     if not habitable_planets:
-        raise HTTPException(status_code=404, detail="No habitable planets found")
+        raise HTTPException(status_code=404,
+                            detail="No habitable planets found")
     return habitable_planets
