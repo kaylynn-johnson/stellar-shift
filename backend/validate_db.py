@@ -5,29 +5,109 @@ from . import config
 
 
 def run_validation(db_path=None) -> bool:
-    """runs data QA checks against the given duckdb file, printing PASS/FAIL per check.
-        returns True only if every check passed."""
+    """runs data QA checks against the given duckdb file,
+    printing PASS/FAIL per check. returns True only if every check passed."""
     db_path = db_path or config.DB_PATH
     CHECKS = [
-        ("Total row count", "SELECT COUNT(*) FROM planets", lambda n: n > 5000),
-        ("No null planet names", "SELECT COUNT(*) FROM planets WHERE pl_name IS NULL", lambda n: n == 0),
-        ("No null hostnames", "SELECT COUNT(*) FROM planets WHERE hostname IS NULL", lambda n: n == 0),
-        ("HZ flag added", "SELECT COUNT(*) FROM planets WHERE in_hz != 0 AND in_hz != 1 AND in_hz IS NOT NULL", lambda n: n == 0),
-        ("Both HZ flags present", "SELECT COUNT(DISTINCT(in_hz)) FROM planets", lambda n: n == 2),
-        ("Unknown HZ planets present", "SELECT COUNT(*) FROM planets WHERE in_hz IS NULL", lambda n: n > 0),
-        ("Reasonable radius", "SELECT MAX(pl_rade) FROM planets", lambda n: n < 100),
-        ("Reasonable mass", "SELECT MAX(pl_masse) FROM planets", lambda n: n < 5000),
-        ("Reasonable orbital period", "SELECT MIN(pl_orbper) FROM planets WHERE pl_orbper IS NOT NULL", lambda n: n > 0),
-        ("Reasonable equilibrium temperature", "SELECT MAX(pl_eqt) FROM planets", lambda n: n < 5000),
-        ("Reasonable stellar temperature", "SELECT MIN(st_teff) FROM planets WHERE st_teff IS NOT NULL", lambda n: n > 1000),
-        ("Stellar classification uses valid categories", "SELECT COUNT(*) FROM planets WHERE stellar_category NOT IN ('O','B','A','F','G','K','M') AND stellar_category IS NOT NULL", lambda n: n == 0),
-        ("Stellar category null count matches st_teff null count", "SELECT COUNT(*) FROM planets WHERE (stellar_category IS NULL) != (st_teff IS NULL)", lambda n: n == 0),
-        ("Reasonable discovery year - early", "SELECT MIN(disc_year) FROM planets", lambda n: n >= 1992),
-        ("Reasonable discover year - high", "SELECT MAX(disc_year) FROM planets", lambda n: n <= datetime.now().year),
-        ("Recent discoveries present", "SELECT COUNT(*) FROM planets WHERE disc_year >= 2020", lambda n: n > 500),
-        ("Reasonable null rate for radius", "SELECT ROUND(100.0 * SUM(CASE WHEN pl_rade IS NULL THEN 1 ELSE 0 END) / COUNT(*), 1) FROM planets", lambda n: n < 30),
-        ("Transit is dominate method", "SELECT ROUND(100.0 * SUM(CASE WHEN discoverymethod = 'Transit' THEN 1 ELSE 0 END) / COUNT(*), 1) FROM planets", lambda n: n > 50),
-        ("No duplicate planet names", "SELECT COUNT(*) - COUNT(DISTINCT pl_name) FROM planets", lambda n: n == 0),
+        (
+            "Total row count",
+            "SELECT COUNT(*) FROM planets",
+            lambda n: n > 5000
+        ),
+        (
+            "No null planet names",
+            "SELECT COUNT(*) FROM planets WHERE pl_name IS NULL",
+            lambda n: n == 0
+        ),
+        (
+            "No null hostnames",
+            "SELECT COUNT(*) FROM planets WHERE hostname IS NULL",
+            lambda n: n == 0
+        ),
+        (
+            "HZ flag added",
+            "SELECT COUNT(*) FROM planets WHERE in_hz != 0 AND in_hz != 1"
+            " AND in_hz IS NOT NULL",
+            lambda n: n == 0
+        ),
+        (
+            "Both HZ flags present",
+            "SELECT COUNT(DISTINCT(in_hz)) FROM planets",
+            lambda n: n == 2
+        ),
+        (
+            "Unknown HZ planets present",
+            "SELECT COUNT(*) FROM planets WHERE in_hz IS NULL",
+            lambda n: n > 0
+        ),
+        (
+            "Reasonable radius",
+            "SELECT MAX(pl_rade) FROM planets",
+            lambda n: n < 100
+        ),
+        (
+            "Reasonable mass",
+            "SELECT MAX(pl_masse) FROM planets",
+            lambda n: n < 5000
+        ),
+        (
+            "Reasonable orbital period",
+            "SELECT MIN(pl_orbper) FROM planets WHERE pl_orbper IS NOT NULL",
+            lambda n: n > 0
+        ),
+        (
+            "Reasonable equilibrium temperature",
+            "SELECT MAX(pl_eqt) FROM planets",
+            lambda n: n < 5000
+        ),
+        (
+            "Reasonable stellar temperature",
+            "SELECT MIN(st_teff) FROM planets WHERE st_teff IS NOT NULL",
+            lambda n: n > 1000
+        ),
+        (
+            "Stellar classification uses valid categories",
+            "SELECT COUNT(*) FROM planets WHERE stellar_category NOT IN "
+            "('O','B','A','F','G','K','M') AND stellar_category IS NOT NULL",
+            lambda n: n == 0
+        ),
+        (
+            "Stellar category null count matches st_teff null count",
+            "SELECT COUNT(*) FROM planets WHERE "
+            "(stellar_category IS NULL) != (st_teff IS NULL)",
+            lambda n: n == 0
+        ),
+        (
+            "Reasonable discovery year - early",
+            "SELECT MIN(disc_year) FROM planets",
+            lambda n: n >= 1992
+        ),
+        (
+            "Reasonable discover year - high",
+            "SELECT MAX(disc_year) FROM planets",
+            lambda n: n <= datetime.now().year
+        ),
+        (
+            "Recent discoveries present",
+            "SELECT COUNT(*) FROM planets WHERE disc_year >= 2020",
+            lambda n: n > 500
+        ),
+        (
+            "Reasonable null rate for radius",
+            "SELECT ROUND(100.0 * SUM(CASE WHEN pl_rade IS NULL "
+            "THEN 1 ELSE 0 END) / COUNT(*), 1) FROM planets",
+            lambda n: n < 30
+        ),
+        (
+            "Transit is dominate method",
+            "SELECT ROUND(100.0 * SUM(CASE WHEN discoverymethod = 'Transit' "
+            "THEN 1 ELSE 0 END) / COUNT(*), 1) FROM planets",
+            lambda n: n > 50),
+        (
+            "No duplicate planet names",
+            "SELECT COUNT(*) - COUNT(DISTINCT pl_name) FROM planets",
+            lambda n: n == 0
+        ),
     ]
 
     con = duckdb.connect(str(db_path))
@@ -41,13 +121,14 @@ def run_validation(db_path=None) -> bool:
 
     # meaningful query for number of HZ planets
     hz_num_query = "SELECT COUNT(*) FROM planets WHERE in_hz == 1"
-    hz_names_query = "SELECT pl_name, disc_year, sy_snum, sy_pnum FROM planets WHERE in_hz == 1 LIMIT 20"
+    hz_names_query = "SELECT pl_name, disc_year, sy_snum, sy_pnum FROM" \
+        " planets WHERE in_hz == 1 LIMIT 20"
     hz_num = con.execute(hz_num_query).fetchone()[0]
     hz_names = con.execute(hz_names_query).fetchall()
 
     print(f"There are {hz_num} planets in the habitable zone.")
-    print(f"Those planet's characteristics for the first 20 are:")
-    print(f"Name, Disc Year, Num stars, Num planets")
+    print("Those planet's characteristics for the first 20 are:")
+    print("Name, Disc Year, Num stars, Num planets")
     for planet in hz_names:
         print(f"{planet[0]}, {planet[1]}, {planet[2]}, {planet[3]}")
 
